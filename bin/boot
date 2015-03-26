@@ -1,0 +1,141 @@
+#!/bin/bash
+
+# fail hard and fast even on pipelines
+set -eo pipefail
+
+function help {
+    set +e
+    cat bin/help.txt
+    set -e
+}
+
+function login  {
+    echo "Running bash"
+    set +e
+    if [[ ! -z "$1" ]] 
+        then
+            sudo su - $1
+        else
+            /bin/bash
+        fi
+    SERVICE_PID=$!
+    set -e
+}
+
+function logindb  {
+    echo "Login into postgres"
+    set +e
+    if [[ -z "$1" ]]; then
+        psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} postgres
+    else
+        psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1
+    fi
+    SERVICE_PID=$!
+    set -e
+}
+
+function dbsize  {
+    set +e
+    if [[ -z "$1" ]]; then
+        echo "Displaying size of all existing databases"
+        echo "SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) AS size FROM pg_database;" | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} postgres
+    else
+        echo 'SELECT relname as "Table", pg_size_pretty(pg_total_relation_size(relid)) As "Size", pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as "External Size" FROM pg_catalog.pg_statio_user_tables ORDER BY pg_total_relation_size(relid) DESC;' | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1
+    fi
+}
+
+function run  {
+    echo "Running sql code into database $1"
+    set +e
+    if [[ -z "$1" ]]; then
+        help
+        exit 1
+    elif [[ -z "$2" ]]; then
+        help
+        exit 1
+    else
+        echo "Executing sql command in database $1 ..."
+        echo $2 | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 
+    fi
+    SERVICE_PID=$!
+    set -e
+}
+
+
+function drop  {
+    set +e
+    if [[ ! -z "$1" ]]; then
+        echo "Dropping database $1 ..."
+        dropdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1
+    else
+        help
+        exit 1
+    fi
+    set -e
+}
+
+function backup  {
+    set +e
+    if [[ -z "$1" ]]; then
+        help
+        exit 1
+    fi
+    file_prefix="/tmp/$(date "+%Y%m%d_%H%M%S")_"
+    file_suffix=".sql"
+    file=${file_prefix}$1${file_suffix}
+    if [[ ! -z "$2" ]]; then
+        file="$2"
+    fi
+    echo "Backing up database $1 to file $file ..."
+    pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 > $file
+    echo "DONE"
+    set -e
+}
+
+function restore  {
+    set +e
+    if [[ -z "$1" ]]; then
+        help
+        exit 1
+    elif [[ -z "$2" ]]; then
+        help
+        exit 1
+    else
+        if [ -f "$2" ]; then
+            echo "Dropping previous version of the database (if any) ..."
+            dropdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 2>&1 > /dev/null
+            echo "Create new empty database $1 ..."
+            createdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 
+            echo "Restoring database $1 from file $2 ..."
+            psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1 < $2
+            echo "DONE"
+        else
+            echo "File not found"
+            exit 1
+        fi
+    fi
+    set -e
+}
+
+function list  {
+    set +e
+    echo "Listing databases..."
+    psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -l
+    set -e
+}
+
+# smart shutdown on SIGINT and SIGTERM
+function on_exit() {
+    kill -TERM $SERVICE_PID
+    wait $SERVICE_PID 2>/dev/null
+    exit 0
+}
+trap on_exit INT TERM
+
+echo "Running command..."
+for arg in "$*"
+do
+    $arg
+done
+
+wait

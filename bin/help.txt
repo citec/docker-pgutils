@@ -1,0 +1,20 @@
+Usage: docker run [OPTIONS] xcgd/odoo[:TAG] [COMMAND ...]
+
+Run odoo in a docker container.
+
+Positional arguments:
+  COMMAND          The command to run. (default: help)
+
+Commands:
+  help                           Show this help message
+  logindb [dbname]               Logins into postgresql server. If dbname is specified, selects it as active db
+  run     [dbname] [sql_cmd]     Run sql_cmd command into dbname database
+  drop    [dbname]               Drops database dbname
+  restore {dbname} {filename}    Restores database from a file
+  backup  {dbname} {filename}    Restores database to a file
+  login   [username]             Run in shell mode as root(if blank) or any other user(if specified)
+
+Examples:
+
+    TODO
+
