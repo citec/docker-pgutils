@@ -55,7 +55,9 @@ function run  {
         exit 1
     else
         echo "Executing sql command in database $1 ..."
-        echo $2 | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 
+        dbname=$1
+        shift
+        echo "$@" | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $dbname
     fi
     SERVICE_PID=$!
     set -e
