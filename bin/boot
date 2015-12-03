@@ -78,24 +78,39 @@ function drop  {
 
 function backup  {
     set +e
+    zip=false
+    file_suffix=".sql"
+    if [[ "$1" = "-z" ]]; then
+        zip=true
+        file_suffix="${file_suffix}.gz"
+        shift
+    fi
     if [[ -z "$1" ]]; then
         help
         exit 1
     fi
     file_prefix="/tmp/$(date "+%Y%m%d_%H%M%S")_"
-    file_suffix=".sql"
     file=${file_prefix}$1${file_suffix}
     if [[ ! -z "$2" ]]; then
         file="$2"
     fi
     echo "Backing up database $1 to file $file ..."
-    pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 > $file
+    if [ "$zip" = true ]; then
+        pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 | gzip -9 > $file
+    else
+        pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 > $file
+    fi
     echo "DONE"
     set -e
 }
 
 function restore  {
     set +e
+    zip=false
+    if [[ "$1" = "-z" ]]; then
+        zip=true
+        shift
+    fi
     if [[ -z "$1" ]]; then
         help
         exit 1
@@ -109,7 +124,11 @@ function restore  {
             echo "Create new empty database $1 ..."
             createdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 
             echo "Restoring database $1 from file $2 ..."
-            psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1 < $2
+            if [ "$zip" = true ]; then
+                gunzip -c $2 | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1
+            else
+                psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1 < $2
+            fi
             echo "DONE"
         else
             echo "File not found"
