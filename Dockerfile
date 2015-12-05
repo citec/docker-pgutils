@@ -16,6 +16,7 @@ RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ trusty-pgdg main" > /etc/
 
 # Execution environment
 USER 0
+RUN mkdir /backup
 WORKDIR /app
 # Set the default entrypoint (non overridable) to run when starting the container
 ENTRYPOINT ["/app/bin/boot"]
