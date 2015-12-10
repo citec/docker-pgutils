@@ -101,10 +101,10 @@ function backup  {
     else
         pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 > $file
     fi
-    if [[ -L "${folder}/latest.gz" ]]; then
-        rm "${folder}/latest.gz"
+    if [[ -L "${folder}/latest${file_suffix}" ]]; then
+        rm "${folder}/latest${file_suffix}"
     fi
-    ln -s "./${file_prefix}$1${file_suffix}" "${folder}/latest.gz"
+    ln -s "./${file_prefix}$1${file_suffix}" "${folder}/latest${file_suffix}"
     echo "DONE"
     set -e
 }
