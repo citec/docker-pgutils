@@ -89,8 +89,9 @@ function backup  {
         help
         exit 1
     fi
-    file_prefix="/backup/$(date "+%Y%m%d_%H%M%S")_"
-    file=${file_prefix}$1${file_suffix}
+    folder="/backup"
+    file_prefix="$(date "+%Y%m%d_%H%M%S")_"
+    file="${folder}/${file_prefix}$1${file_suffix}"
     if [[ ! -z "$2" ]]; then
         file="$2"
     fi
@@ -100,6 +101,10 @@ function backup  {
     else
         pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 > $file
     fi
+    if [[ -L "${folder}/latest.gz" ]]; then
+        rm "${folder}/latest.gz"
+    fi
+    ln -s "./${file_prefix}$1${file_suffix}" "${folder}/latest.gz"
     echo "DONE"
     set -e
 }
