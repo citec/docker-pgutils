@@ -26,9 +26,9 @@ function logindb  {
     echo "Login into postgres"
     set +e
     if [[ -z "$1" ]]; then
-        psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} postgres
+        psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} postgres
     else
-        psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1
+        psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1
     fi
     SERVICE_PID=$!
     set -e
@@ -38,9 +38,9 @@ function dbsize  {
     set +e
     if [[ -z "$1" ]]; then
         echo "Displaying size of all existing databases"
-        echo "SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) AS size FROM pg_database;" | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} postgres
+        echo "SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) AS size FROM pg_database;" | psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} postgres
     else
-        echo 'SELECT relname as "Table", pg_size_pretty(pg_total_relation_size(relid)) As "Size", pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as "External Size" FROM pg_catalog.pg_statio_user_tables ORDER BY pg_total_relation_size(relid) DESC;' | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1
+        echo 'SELECT relname as "Table", pg_size_pretty(pg_total_relation_size(relid)) As "Size", pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) as "External Size" FROM pg_catalog.pg_statio_user_tables ORDER BY pg_total_relation_size(relid) DESC;' | psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1
     fi
 }
 
@@ -57,7 +57,7 @@ function run  {
         echo "Executing sql command in database $1 ..."
         dbname=$1
         shift
-        echo "$@" | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $dbname
+        echo "$@" | psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $dbname
     fi
     SERVICE_PID=$!
     set -e
@@ -68,7 +68,7 @@ function drop  {
     set +e
     if [[ ! -z "$1" ]]; then
         echo "Dropping database $1 ..."
-        dropdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1
+        dropdb -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1
     else
         help
         exit 1
@@ -97,9 +97,9 @@ function backup  {
     fi
     echo "Backing up database $1 to file $file ..."
     if [ "$zip" = true ]; then
-        pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 | gzip -9 > $file
+        pg_dump -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1 | gzip -9 > $file
     else
-        pg_dump -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 > $file
+        pg_dump -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1 > $file
     fi
     if [[ -L "${folder}/latest${file_suffix}" ]]; then
         rm "${folder}/latest${file_suffix}"
@@ -126,14 +126,14 @@ function restore  {
         backup_file="/backup/$2"
         if [ -f "${backup_file}" ]; then
             echo "Dropping previous version of the database (if any) ..."
-            dropdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 2>&1 > /dev/null
+            dropdb -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1 2>&1 > /dev/null
             echo "Create new empty database $1 ..."
-            createdb -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} $1 
+            createdb -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} $1 
             echo "Restoring database $1 from file ${backup_file} ..."
             if [ "$zip" = true ]; then
-                gunzip -c ${backup_file} | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1
+                gunzip -c ${backup_file} | psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} -q $1
             else
-                psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1 < ${backup_file}
+                psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} -q $1 < ${backup_file}
             fi
             echo "DONE"
         else
@@ -147,7 +147,7 @@ function restore  {
 function list  {
     set +e
     echo "Listing databases..."
-    psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -l
+    psql -h ${DB_PORT_5432_TCP_ADDR:-"db"} -U ${POSTGRES_USER:-"odoo"} -l
     set -e
 }
 
