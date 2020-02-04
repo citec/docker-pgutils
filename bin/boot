@@ -112,8 +112,12 @@ function backup  {
 function restore  {
     set +e
     zip=false
+    dump=false
     if [[ "$1" = "-z" ]]; then
         zip=true
+        shift
+    elif [[ "$1" = "-d" ]]; then
+        dump=true
         shift
     fi
     if [[ -z "$1" ]]; then
@@ -132,6 +136,8 @@ function restore  {
             echo "Restoring database $1 from file ${backup_file} ..."
             if [ "$zip" = true ]; then
                 gunzip -c ${backup_file} | psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1
+            elif [ "$dump" = true ]; then
+                pg_restore -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -d $1 ${backup_file}
             else
                 psql -h ${DB_PORT_5432_TCP_ADDR} -U ${POSTGRES_USER:-"pg"} -q $1 < ${backup_file}
             fi
